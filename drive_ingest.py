@@ -44,7 +44,7 @@ def main():
                 includeItemsFromAllDrives=True,
                 includeTeamDriveItems=True,
                 supportsTeamDrives=True,
-                q="'1VyJnjVQxTA6PtvZUtzXI0liWz1Vb4SVk' in parents",
+                q="'1ouXS9TcWWEsorxooU_-wbrtvIcdIaWzI' in parents",
                 fields="nextPageToken, files(id, name, mimeType, parents, modifiedTime, shortcutDetails)"
             )
             .execute()
@@ -52,13 +52,26 @@ def main():
 
     except HttpError as error:
         print(f"An error occurred: {error}")
+    
 
     for file in kbFiles.get('files', []):
         if file['mimeType'] == 'application/vnd.google-apps.shortcut':
             target_file_id = file.get('shortcutDetails', {}).get('targetId')
-            target_file_name = file.get('shortcutDetails', {}).get('targetName')
-            if target_file_id and target_file_id not in exportFileList:
-                exportFileList.append({'id': target_file_id, 'name': target_file_name})
+            try: 
+                if target_file_id:
+                    target_file = driveService.files().get(fileId=target_file_id, fields='id, name, mimeType').execute()
+                    if target_file['mimeType'] in ['application/vnd.google-apps.document', 'application/vnd.google-apps.presentation']:
+                        try:
+                            if target_file_id not in exportFileList:
+                                exportFileList.append({'id': target_file_id, 'name': target_file['name']})
+                        except HttpError as error:
+                            print(f"An error occurred while retrieving metadata for file with ID {target_file_id}: {error}")
+                    else:
+                        print(f"Shortcut file with ID {file['id']} has a target file with ID {target_file_id} that is not a Google Document or Presentation")
+                else :
+                    print(f"Shortcut file with ID {file['id']} does not have a target file ID")
+            except HttpError as error:
+                print(f"An error occurred while retrieving metadata for file with ID {target_file_id}: {error}")
         elif file['mimeType'] in ['application/vnd.google-apps.document', 'application/vnd.google-apps.presentation']:
             if file['id'] not in exportFileList:
                 exportFileList.append({'id': file['id'], 'name': file['name']})
@@ -78,7 +91,7 @@ def main():
     with driver.session() as session:
         result = session.run(
             "UNWIND $fileList as file "
-            "MERGE (f:BrainFile:KB {id: file.id}) "
+            "MERGE (f:KB {id: file.id}) "
             "SET f.name = file.name "
             "MERGE (c:Content {content: file.content}) "
             "MERGE (f)-[:HAS_CONTENT]->(c) "
