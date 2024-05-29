@@ -14,6 +14,31 @@ NEO4J_PASSWORD = "password"
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 API_KEY = 'AIzaSyDeHlpiRM03MorwPk_fLmS-E3FkYG0HoVs'
 
+def get_all_files_in_folder(service, folder_id):
+    files = []
+    try:
+        results = service.files().list(
+            q=f"'{folder_id}' in parents",
+            pageSize=1000,
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            includeTeamDriveItems=True,
+            supportsTeamDrives=True,
+            fields="nextPageToken, files(id, name, mimeType, parents, modifiedTime, shortcutDetails)"
+        ).execute()
+        files.extend(results.get('files', []))
+        
+        # Check for subfolders
+        subfolders = [file for file in files if file['mimeType'] == 'application/vnd.google-apps.folder']
+        for subfolder in subfolders:
+            # Recursively get files in subfolders
+            files.extend(get_all_files_in_folder(service, subfolder['id']))
+
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+
+    return files
+
 def main():
     """Shows basic usage of the Drive v3 API.
     Prints the names and ids of the first 10 files the user has access to.
@@ -36,49 +61,36 @@ def main():
 
     try:
         driveService = build("drive", "v3", credentials=creds, developerKey=API_KEY)
-        kbFiles = (
-            driveService.files()
-            .list(
-                pageSize=1000,
-                supportsAllDrives=True,
-                includeItemsFromAllDrives=True,
-                includeTeamDriveItems=True,
-                supportsTeamDrives=True,
-                q="'1ouXS9TcWWEsorxooU_-wbrtvIcdIaWzI' in parents",
-                fields="nextPageToken, files(id, name, mimeType, parents, modifiedTime, shortcutDetails)"
-            )
-            .execute()
-        )
+        # Recursively get all files in the specified parent folder
+        parent_folder_id = '1ouXS9TcWWEsorxooU_-wbrtvIcdIaWzI'
+        kbFiles = get_all_files_in_folder(driveService, parent_folder_id)
 
     except HttpError as error:
         print(f"An error occurred: {error}")
     
-
-    for file in kbFiles.get('files', []):
+    for file in kbFiles:
         if file['mimeType'] == 'application/vnd.google-apps.shortcut':
             target_file_id = file.get('shortcutDetails', {}).get('targetId')
             try: 
                 if target_file_id:
                     target_file = driveService.files().get(fileId=target_file_id, fields='id, name, mimeType').execute()
                     if target_file['mimeType'] in ['application/vnd.google-apps.document', 'application/vnd.google-apps.presentation']:
-                        try:
-                            if target_file_id not in exportFileList:
-                                exportFileList.append({'id': target_file_id, 'name': target_file['name']})
-                        except HttpError as error:
-                            print(f"An error occurred while retrieving metadata for file with ID {target_file_id}: {error}")
-                    else:
-                        print(f"Shortcut file with ID {file['id']} has a target file with ID {target_file_id} that is not a Google Document or Presentation")
-                else :
+                        if target_file_id not in [f['id'] for f in exportFileList]:
+                            print(f"Exporting file with ID {target_file_id}. It has mimeType {target_file['mimeType']} and name {target_file['name']}")
+                            exportFileList.append({'id': target_file_id, 'name': target_file['name']})
+                else:
                     print(f"Shortcut file with ID {file['id']} does not have a target file ID")
             except HttpError as error:
                 print(f"An error occurred while retrieving metadata for file with ID {target_file_id}: {error}")
         elif file['mimeType'] in ['application/vnd.google-apps.document', 'application/vnd.google-apps.presentation']:
-            if file['id'] not in exportFileList:
+            if file['id'] not in [f['id'] for f in exportFileList]:
+                print(f"Exporting file with ID {file['id']}. It has mimeType {file['mimeType']} and name {file['name']}")
                 exportFileList.append({'id': file['id'], 'name': file['name']})
 
     dbArrayList = []
     for file_info in exportFileList:
         try:
+            print("Creating dbArrayList")
             fileContent = driveService.files().export(fileId=file_info['id'], mimeType='text/plain').execute().decode('utf-8')
             dbArrayList.append({
                 'id': file_info['id'],
@@ -87,13 +99,14 @@ def main():
             })
         except HttpError as error:
             print(f"An error occurred while retrieving content for file with ID {file_info['id']}: {error}")
-
     with driver.session() as session:
+        session.run("CREATE CONSTRAINT singleArticleIdConstraint IF NOT EXISTS FOR (a:Article) REQUIRE a.id IS UNIQUE")
         result = session.run(
             "UNWIND $fileList as file "
-            "MERGE (f:KB {id: file.id}) "
+            "MERGE (f:Article {id: file.id}) "
             "SET f.name = file.name "
             "MERGE (c:Content {content: file.content}) "
+            "SET c.articleName = file.name"
             "MERGE (f)-[:HAS_CONTENT]->(c) "
             "RETURN f.id, f.name, c.content",
             fileList=dbArrayList
