@@ -40,9 +40,6 @@ def get_all_files_in_folder(service, folder_id):
     return files
 
 def main():
-    """Shows basic usage of the Drive v3 API.
-    Prints the names and ids of the first 10 files the user has access to.
-    """
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
@@ -62,7 +59,7 @@ def main():
     try:
         driveService = build("drive", "v3", credentials=creds, developerKey=API_KEY)
         # Recursively get all files in the specified parent folder
-        parent_folder_id = '1ouXS9TcWWEsorxooU_-wbrtvIcdIaWzI'
+        parent_folder_id = '0ABEzJl8w0KchUk9PVA'
         kbFiles = get_all_files_in_folder(driveService, parent_folder_id)
 
     except HttpError as error:
@@ -103,12 +100,12 @@ def main():
         session.run("CREATE CONSTRAINT singleArticleIdConstraint IF NOT EXISTS FOR (a:Article) REQUIRE a.id IS UNIQUE")
         result = session.run(
             "UNWIND $fileList as file "
-            "MERGE (f:Article {id: file.id}) "
+            "MERGE(f:Article {id: file.id}) "
             "SET f.name = file.name "
-            "MERGE (c:Content {content: file.content}) "
-            "SET c.articleName = file.name"
-            "MERGE (f)-[:HAS_CONTENT]->(c) "
-            "RETURN f.id, f.name, c.content",
+            "MERGE(c:Content {content: file.content}) "
+            "SET c.articleName = file.name "
+            "MERGE(f)-[:HAS_CONTENT]->(c) "
+            "RETURN f.id, f.name, c.content ",
             fileList=dbArrayList
         )
 
@@ -116,5 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
