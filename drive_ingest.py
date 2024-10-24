@@ -7,12 +7,11 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from neo4j import GraphDatabase
 
-# If modifying these scopes, delete the file token.json.
+# Enter Neo4j Credentials Here
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USERNAME = "neo4j"
 NEO4J_PASSWORD = "password"
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-API_KEY = 'AIzaSyDeHlpiRM03MorwPk_fLmS-E3FkYG0HoVs'
 
 def get_all_files_in_folder(service, folder_id):
     files = []
@@ -59,7 +58,7 @@ def main():
     try:
         driveService = build("drive", "v3", credentials=creds, developerKey=API_KEY)
         # Recursively get all files in the specified parent folder
-        parent_folder_id = '0ABEzJl8w0KchUk9PVA'
+        parent_folder_id = <Include Folder ID (from URL) here>
         kbFiles = get_all_files_in_folder(driveService, parent_folder_id)
 
     except HttpError as error:
