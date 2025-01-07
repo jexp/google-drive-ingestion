@@ -8,5 +8,5 @@ If a directory is selected, for which all contents should be copied to the Neo4j
 
 For this script to work, a token.json file must be used to provide verify the connection throught the google drive API. This token expires and must be renewed regularly to ensure the script continues to work. More information on this can be found at: https://developers.google.com/drive/api/guides/about-sdk
 
-
-
+https://developers.google.com/workspace/guides/create-credentials
+https://console.cloud.google.com/apis/credentials?inv=1&invt=AbmNvg&project=<project>

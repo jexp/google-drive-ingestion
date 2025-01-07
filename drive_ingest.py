@@ -6,11 +6,16 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from neo4j import GraphDatabase
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Enter Neo4j Credentials Here
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USERNAME = "neo4j"
-NEO4J_PASSWORD = "password"
+NEO4J_URI = os.getenv("NEO4J_URI","bolt://localhost:7687")
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME","neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD","password")
+
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 def get_all_files_in_folder(service, folder_id):
@@ -56,9 +61,9 @@ def main():
     exportFileList = []
 
     try:
-        driveService = build("drive", "v3", credentials=creds, developerKey=API_KEY)
+        driveService = build("drive", "v3", credentials=creds, developerKey=os.getenv("API_KEY"))
         # Recursively get all files in the specified parent folder
-        parent_folder_id = <Include Folder ID (from URL) here>
+        parent_folder_id = os.getenv("FOLDER_ID")
         kbFiles = get_all_files_in_folder(driveService, parent_folder_id)
 
     except HttpError as error:

@@ -1,0 +1,10 @@
+python-dotenv
+google-oauth2-tool
+google-auth
+google-auth-oauthlib
+neo4j
+langchain-google-community[drive]
+langchain 
+langchain-community 
+langchain-neo4j
+langchain-openai
